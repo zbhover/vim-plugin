@@ -243,7 +243,7 @@ endif
                 let &makeprg ="gcc -fexec-charset=GBK -finput-charset=GBK -std=c11"
             endif
      else
-            let &makeprg ="gcc -std=c11"
+            let &makeprg ="gcc "
      endif
         if (a:clwall=="noWall"  && a:clcgi=="nocgi")
             let &makeprg .=" -O2 ".s:compile_Flags.shellescape(expand("%:p:t")).' -o '.shellescape(s:Exe).s:link_Flags
