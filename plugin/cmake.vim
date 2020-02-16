@@ -5,8 +5,10 @@ let s:Obj_Extension = '.o'
 let s:Exe_Extension = '.exe'
 let s:Sou_Error = 0
 
-let s:windows_CFlags = 'gcc\ -fexec-charset=gbk\ -std=c11\ -Wall\ -g\ -O0\ -c\ %\ -o\ %<.o'
-let s:linux_CFlags = 'gcc\ -Wall\ -g\ -O0\ -c\ %\ -o\ %<.o'
+"let s:windows_CFlags = 'gcc\ -fexec-charset=gbk\ -std=c11\ -Wall\ -g\ -O0\ -c\ %\ -o\ %<.o'
+let s:windows_CFlags = 'gcc\ -fexec-charset=gbk\ -g\ -O0\ -c\ %\ -o\ %<.o'
+"let s:linux_CFlags = 'gcc\ -Wall\ -g\ -O0\ -c\ %\ -o\ %<.o'
+let s:linux_CFlags = 'gcc\ -g\ -O0\ -c\ %\ -o\ %<.o'
 
 let s:windows_CPPFlags = 'g++\ -fexec-charset=gbk\ -std=c++11\ -Wall\ -g\ -O0\ -c\ %\ -o\ %<.o'
 let s:linux_CPPFlags = 'g++\ -Wall\ -g\ -O0\ -c\ %\ -o\ %<.o'
