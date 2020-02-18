@@ -1,23 +1,66 @@
+func! g:CompileLinkFlag(escape_blank)
+    let s:compile_Flags=''
+    let s:link_Flags=''
+    if search('.*include\&.*gtk\.h')
+    "   let s:compile_Flags .='--export-dynamic `pkg-config --cflags gtk+-3.0`'
+        let s:compile_Flags .=' `pkg-config --cflags gtk+-3.0`'
+        let s:link_Flags    .=' `pkg-config --libs gtk+-3.0 gmodule-export-2.0`'
+        "let s:link_Flags    .=' `pkg-config --libs gtk+-3.0`'
+    endif
+    if search('.*include\&.*math\.h')||search('.*include\&.*cmath')
+        let  s:link_Flags .= ' -lm'
+    endif
+    if search('.*include\&.*time\.h')||search('.*include\&.*ctime')
+        let  s:link_Flags.= ' -lrt'
+    endif
+    if search("glut\.h")
+      let s:link_Flags .= " -lglut -lGLU -lGL"
+    endif
+    if search("cv\.h")
+      let s:link_Flags .= " -lcv -lhighgui -lcvaux"
+    endif
+    if search("pthread\.h")
+      let s:link_Flags .= " -lpthread"
+    endif
+    if search("X11\/XKBlib\.h") || search("X11\/X\.h")
+      let s:link_Flags .= " -lX11"
+    endif
+    if search("curses\.h")
+        let s:link_Flags .= " -lcurses"
+      endif
+    if  search("omp\.h")
+      let s:link_Flags .= " -fopenmp"
+    endif
+    if a:escape_blank ==# '\ '"每次必须单引号,单引号中的特殊符号不会转义
+        return [escape(s:compile_Flags,'\ '),escape(s:link_Flags,'\ ')]
+    endif
+    return [s:compile_Flags,s:link_Flags]
+endfunc
+
+
 let s:LastShellReturn_C = 0
 let s:LastShellReturn_L = 0
 let s:ShowWarning = 1
 let s:Obj_Extension = '.o'
 let s:Exe_Extension = '.exe'
 let s:Sou_Error = 0
-
-"let s:windows_CFlags = 'gcc\ -fexec-charset=gbk\ -std=c11\ -Wall\ -g\ -O0\ -c\ %\ -o\ %<.o'
-let s:windows_CFlags = 'gcc\ -fexec-charset=gbk\ -g\ -O0\ -c\ %\ -o\ %<.o'
-"let s:linux_CFlags = 'gcc\ -Wall\ -g\ -O0\ -c\ %\ -o\ %<.o'
-let s:linux_CFlags = 'gcc\ -g\ -O0\ -c\ %\ -o\ %<.o'
-
-let s:windows_CPPFlags = 'g++\ -fexec-charset=gbk\ -std=c++11\ -Wall\ -g\ -O0\ -c\ %\ -o\ %<.o'
-let s:linux_CPPFlags = 'g++\ -Wall\ -g\ -O0\ -c\ %\ -o\ %<.o'
-
-func! g:Compile()
+func! g:Compile(...)
     call Test_filename()
+"let s:windows_CFlags = 'gcc\ -fexec-charset=gbk\ -std=c11\ -Wall\ -g\ -O0\ -c\ %\ -o\ %<.o'
+let s:windows_CFlags = 'gcc\ -fexec-charset=gbk'
+let s:linux_CFlags = 'gcc\ -g'
+let s:windows_CPPFlags = 'g++\ -fexec-charset=gbk'
+let s:linux_CPPFlags = 'g++\ -g'
+let s:makeflag=''
+  for var in a:000
+        if strpart(var,0,1) ==# "-"
+            s:makeflag .='\ '.var
+        endif
+  endfor
+
     exe ":ccl"
     exe ":update"
-    if expand("%:e") == "c" || expand("%:e") == "cpp" || expand("%:e") == "cxx"
+    if expand("%:e") ==? "c" || expand("%:e") ==? "cpp" || expand("%:e") ==? "cxx"
         let s:Sou_Error = 0
         let s:LastShellReturn_C = 0
         let Sou = expand("%:p")
@@ -26,18 +69,18 @@ func! g:Compile()
         let v:statusmsg = ''
         if !filereadable(Obj) || (filereadable(Obj) && (getftime(Obj) < getftime(Sou)))
             " redraw!
-            if expand("%:e") == "c"
+            if expand("%:e") ==? "c"
                 if WINDOWS()
-                    exe ":setlocal makeprg=".s:windows_CFlags
+                    exe ":setlocal makeprg=".s:windows_CFlags.s:makeflag.'\ -c\ %\ -o\ %<.o'.CompileLinkFlag('\ ')[1]
                 else
-                    exe ":setlocal makeprg=".s:linux_CFlags
+                    exe ":setlocal makeprg=".s:linux_CFlags.s:makeflag.'\ -c\ %\ -o\ %<.o'.CompileLinkFlag('\ ')[1]
                 endif
                 echohl WarningMsg | echo " compiling..."
-            elseif expand("%:e") == "cpp" || expand("%:e") == "cxx"
+            elseif expand("%:e") ==? "cpp" || expand("%:e") ==? "cxx"
                 if WINDOWS()
-                    exe ":setlocal makeprg=".s:windows_CPPFlags
+                    exe ":setlocal makeprg=".s:windows_CPPFlags.s:makeflag.'\ -c\ %\ -o\ %<.o'.CompileLinkFlag('\ ')[1]
                 else
-                    exe ":setlocal makeprg=".s:linux_CPPFlags
+                    exe ":setlocal makeprg=".s:linux_CPPFlags.s:makeflag.'\ -c\ %\ -o\ %<.o'.CompileLinkFlag('\ ')[1]
                 endif
                 echohl WarningMsg | echo " compiling..."
             endif
@@ -157,7 +200,7 @@ func! g:Run()
     endif
 endfunc
 
-func! g:CompileLinkRun(clwall,clgdb,clcgi,clasm)
+func! g:CompileLinkRun(...)
     if LINUX()
         let s:Output_path="/tmp"
         "let s:Output_path=expand("%:p:h")
@@ -175,102 +218,39 @@ func! g:CompileLinkRun(clwall,clgdb,clcgi,clasm)
     let v:statusmsg = ''
     exe ":ccl"
     exe ":update"
-    if (filereadable(s:Exe) && a:clcgi=="nocgi") && LINUX()
+    if (filereadable(s:Exe) && match(a:000,'^asm$') != -1) && LINUX()
         silent!  exec "! rm ".shellescape(s:Exe)
     endif
-    if (filereadable(s:Exe) && a:clcgi=="nocgi" && WINDOWS())
+    if (filereadable(s:Exe) && match(a:000,'^cgi$') !=-1 && WINDOWS())
         silent!  exec "! del ".shellescape(s:Exe)
     endif
-
-if (filereadable(s:Exe.".s") && a:clasm=="asm")
+if (filereadable(s:Exe.".s") && match(a:000,'^asm$') != -1)
     silent! exec "!rm ".shellescape(s:Exe.".s")
 endif
-if (filereadable(s:cgi_bin.expand("%:r").".cgi") && a:clcgi=="cgi")
+if (filereadable(s:cgi_bin.expand("%:r").".cgi") && match(a:000,'^cgi$') !=-1)
     silent! exec "!rm ".shellescape(s:cgi_bin.expand("%:r").".cgi")
 endif
-let s:compile_Flags=''
-let s:link_Flags=''
-if a:clgdb=="gdb"
+if match(a:000,'^gdb$') !=-1
     let  s:compile_Flags .= ' -gstabs+ '
 endif
-if search('.*include\&.*gtk\.h')
-"   let s:compile_Flags .='--export-dynamic `pkg-config --cflags gtk+-3.0` '
-    let s:compile_Flags .=' `pkg-config --cflags gtk+-3.0` '
-    let s:link_Flags    .=' `pkg-config --libs gtk+-3.0 gmodule-export-2.0` '
-    "let s:link_Flags    .=' `pkg-config --libs gtk+-3.0` '
-endif
-if search('.*include\&.*math\.h')||search('.*include\&.*cmath')
-    let  s:link_Flags .= ' -lm '
-endif
-    if search("mpi\.h")
-      let compilecmd = "!mpicc "
-      let s:Exe ="mpiun -np 4 ".s:Exe
-    endif
-    if search("mpi\.h")
-      let compilecmd = "!mpic++ "
-      let s:Exe="mpiun -np 4 ".s:Exe
-    endif
-if search('.*include\&.*time\.h')||search('.*include\&.*ctime')
-    let  s:link_Flags.= ' -lrt '
-endif
-    if search("glut\.h")
-      let s:link_Flags .= " -lglut -lGLU -lGL "
-    endif
-    if search("cv\.h")
-      let s:link_Flags .= " -lcv -lhighgui -lcvaux "
-    endif
-    if search("pthread\.h")
-      let s:link_Flags .= " -lpthread "
-    endif
-    if search("X11\/XKBlib\.h") || search("X11\/X\.h")
-      let s:link_Flags .= " -lX11 "
-    endif
-    if search("curses\.h")
-        let s:link_Flags .= " -lcurses "
-      endif
-    if  search("omp\.h")
-      let s:link_Flags .= " -fopenmp "
-    endif
-    if expand("%:e") == "c"
+   if expand("%:e") == "c"
         if !executable('gcc')
             echom "Please install gcc "
             return
         endif
-
-     if WINDOWS()
-            if &fileencoding ==? 'utf-8'  ||( &fenc =='' && &enc ==? 'utf-8') let &makeprg ="gcc -fexec-charset=GBK -finput-charset=UTF-8 -std=c11"
-            else
-                let &makeprg ="gcc -fexec-charset=GBK -finput-charset=GBK -std=c11"
-            endif
-     else
-            let &makeprg ="gcc "
-     endif
-        if (a:clwall=="noWall"  && a:clcgi=="nocgi")
-            let &makeprg .=" -O2 ".s:compile_Flags.shellescape(expand("%:p:t")).' -o '.shellescape(s:Exe).s:link_Flags
-        endif
-        if (a:clwall=="Wall" && a:clcgi=="nocgi")
-            let &makeprg .=" -Wall -g  ".s:compile_Flags.shellescape(expand("%:p:t")).' -o '.shellescape(s:Exe).s:link_Flags
-        endif
-
-          if (a:clwall=="noWall"  && a:clcgi=="cgi")
-let &makeprg .=" -O2 ".s:compile_Flags.shellescape(expand("%:p:t"))." -o ".shellescape(s:cgi_bin.expand("%:r").".cgi").s:link_Flags
-              endif
-                    if (a:clwall=="Wall"  && a:clcgi=="cgi")
-let &makeprg .=" -Wall -g  ".s:compile_Flags.shellescape(expand("%:p:t")).s:compile_Flags.' -o '.shellescape(s:cgi_bin.expand("%:r").".cgi").s:link_Flags
-              endif
-          if (a:clwall=="noWall"  && a:clasm=="asm")
-        let &makeprg .=" -S -O2 ".s:compile_Flags.shellescape(expand("%:p:t")).' -o '.shellescape(s:Exe.".s").s:link_Flags
-              endif
-           if (a:clwall=="Wall"  && a:clasm=="asm")
-        let &makeprg .=" -Wall -S -g ".s:compile_Flags.shellescape(expand("%:p:t")).' -o '.shellescape(s:Exe.".s").s:link_Flags
-              endif
-
+         if WINDOWS()
+                if &fileencoding ==? 'utf-8'  ||( &fenc =='' && &enc ==? 'utf-8') let &makeprg ="gcc -fexec-charset=GBK -finput-charset=UTF-8 "
+                else
+                    let &makeprg ="gcc -fexec-charset=GBK -finput-charset=GBK "
+                endif
+         else
+                let &makeprg ="gcc "
+         endif
     elseif expand("%:e") == "cpp" || expand("%:e") == "cxx"
         if !executable('g++')
             echom "Please install g++ "
             return
         endif
-
         if WINDOWS()
             if &fileencoding ==? 'utf-8'||( &fenc =='' && &enc ==? 'utf-8')
                 let &makeprg ="g++ -fexec-charset=GBK -finput-charset=utf-8"
@@ -280,26 +260,18 @@ let &makeprg .=" -Wall -g  ".s:compile_Flags.shellescape(expand("%:p:t")).s:comp
         else
             let &makeprg ="g++ "
         endif
-        if (a:clwall=="noWall"  && a:clcgi=="nocgi")
-            let &makeprg .=" -std=c++11 -O2 ".s:compile_Flags.shellescape(expand("%:p:t")).' -o '.shellescape(s:Exe).s:link_Flags
-        endif
-        if (a:clwall=="Wall"  && a:clcgi=="nocgi")
-            let &makeprg .=" -Wall -std=c++11 -g  ".s:compile_Flags.shellescape(expand("%:p:t")).' -o '.shellescape(s:Exe).s:link_Flags
-        endif
-
-        if (a:clwall=="noWall" && a:clcgi=="cgi")
-let &makeprg .=" -std=c++11 -O2 ".s:compile_Flags.shellescape(expand("%:p:t")).' -o '.shellescape(s:cgi_bin".expand("%:r").".cgi").s:link_Flags
-              endif
-                  if (a:clwall=="Wall" && a:clcgi=="cgi")
-let &makeprg .=" -Wall -std=c++11 -g  ".s:compile_Flags.shellescape(expand("%:p:t")).' -o '.shellescape(s:cgi_bin.expand("%:r").".cgi").s:link_Flags
-              endif
-
-          if (a:clwall=="noWall"  && a:clasm=="asm")
-            let &makeprg .=" -std=c++11 -S -O2 ".s:compile_Flags.shellescape(expand("%:p:t")).' -o '.shellescape(s:Exe.".s").s:link_Flags
-          endif
-            if (a:clwall=="Wall"  && a:clasm=="asm")
-                let &makeprg .=" -Wall -S -std=c++11 -g ".s:compile_Flags.shellescape(expand("%:p:t")).' -o '.shellescape(s:Exe.".s").s:link_Flags
-          endif
+    endif
+  for var in a:000
+            if strpart(var,0,1) == "-"
+                let &makeprg .=" ".var
+            endif
+  endfor
+    if match(a:000,'^cgi$') != -1
+let &makeprg .=s:compile_Flags.shellescape(expand("%:p:t")).CompileLinkFlag("")[0].' -o '.shellescape(s:cgi_bin.expand("%:r").".cgi").CompileLinkFlag("")[1]
+    elseif match(a:000,'^asm$') != -1
+        let &makeprg .=CompileLinkFlag("")[0].shellescape(expand("%:p:t")).' -o '.shellescape(s:Exe.".s").CompileLinkFlag("")[1]
+    else
+        let &makeprg .=CompileLinkFlag("")[0].shellescape(expand("%:p:t")).' -o '.shellescape(s:Exe).CompileLinkFlag("")[1]
     endif
 
     echohl WarningMsg | echo " compiling..." | echom &makeprg
@@ -325,19 +297,28 @@ let &makeprg .=" -Wall -std=c++11 -g  ".s:compile_Flags.shellescape(expand("%:p:
         return
     endif
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""
-    if a:clcgi=="cgi"
+    if search("mpi\.h")
+      let compilecmd = " !mpicc"
+      let s:Exe ="mpiun -np 4 ".s:Exe
+    endif
+    if search("mpi\.h")
+      let compilecmd = "!mpic++ "
+      let s:Exe="mpiun -np 4 ".s:Exe
+    endif
+
+    if match(a:000,'^cgi$') != -1
         call Test_chmod(s:cgi_bin)
         silent!   exec "!chmod 755 ".shellescape(s:cgi_bin.expand('%:r').".cgi")
         exec "!chromium-browser 127.0.0.1/cgi-bin/".expand('%:r').".cgi"
         redraw!
         return
     endif
-    if a:clasm=="asm"
+    if match(a:000,'^asm$') != -1
         "silent! exec "tabnew /tmp/%<.s"
         exec ":tabnew ".s:Exe.".s"
         return
     endif
-    if a:clgdb=="gdb"
+    if match(a:000,'^gdb$') != -1
         exec "! gdb " .shellescape(s:Exe)
         return
     endif
