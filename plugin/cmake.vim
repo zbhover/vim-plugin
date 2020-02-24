@@ -254,7 +254,7 @@ endif
         endif
         if WINDOWS()
             if &fileencoding ==? 'utf-8'||( &fenc =='' && &enc ==? 'utf-8')
-                let &makeprg ="g++ -fexec-charset=GBK -finput-charset=utf-8"
+                let &makeprg ="g++ -fexec-charset=GBK -finput-charset=utf-8 "
             else
                 let &makeprg ="g++ -fexec-charset=GBK -finput-charset=GBK "
             endif
