@@ -19,6 +19,12 @@ func! g:CompileLinkFlag(escape_blank)
     if search("cv\.h")
       let s:link_Flags .= " -lcv -lhighgui -lcvaux"
     endif
+    if search("gmp\.h")
+      let s:link_Flags .= " -lgmp"
+    endif
+    if search("gmpxx\.h")
+      let s:link_Flags .= " -lgmpxx -lgmp"
+    endif
     if search("pthread\.h")
       let s:link_Flags .= " -lpthread"
     endif
